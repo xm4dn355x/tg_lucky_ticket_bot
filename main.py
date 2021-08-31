@@ -15,10 +15,10 @@ from datetime import datetime
 from sys import platform
 
 from aiogram import Bot, Dispatcher, executor, types
-from aiogram.types import Message
+from aiogram.types import Message, ContentType
 from loguru import logger
 
-from services import get_day_period
+from services import get_day_period, match_winner_number, greet_kb, find_closest_place
 
 # Init loggers
 logger.add('logs/debug.log', format="{time} {level} {message}", level='DEBUG', rotation='500 MB')
@@ -36,6 +36,7 @@ bot = Bot(TOKEN)
 dp = Dispatcher(bot)
 
 
+@logger.catch
 @dp.message_handler(commands=['start', 'help'])
 async def welcome(message: Message):
     """Обработчик команд /start и /help"""
@@ -44,13 +45,24 @@ async def welcome(message: Message):
                         parse_mode='Markdown')
 
 
+@logger.catch
+@dp.message_handler(regexp=r'^\d+$')
+async def check_winner_or_not(message: Message):
+    prizes = match_winner_number(int(message.text))
+    if prizes:
+        answer = ' '.join(prizes)   # TODO: Заменить мокнутое сообщение на нормальное
+        await message.answer(answer, reply_markup=greet_kb)
+    else:
+        await message.answer('К сожалению Вы ничего не выиграли...')
 
-@dp.message_handler()
-async def echo(message: Message):
-    await message.answer(message.text)
+
+@logger.catch
+@dp.message_handler(content_types=ContentType.LOCATION)
+async def geo_handler(message: Message):
+    result = find_closest_place(message.location)
+    await message.answer(result)
 
 
 if __name__ == '__main__':
     logger.info('Bot started')
     executor.start_polling(dp, skip_updates=True)
-
