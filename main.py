@@ -15,9 +15,11 @@ from datetime import datetime
 from sys import platform
 
 from aiogram import Bot, Dispatcher, executor, types
+from aiogram.dispatcher import FSMContext
 from aiogram.types import Message, ContentType
 from loguru import logger
 
+from feedback import Feedback
 from services import get_day_period, match_winner_number, greet_kb, find_closest_place
 
 # Init loggers
@@ -48,12 +50,8 @@ async def welcome(message: Message):
 @logger.catch
 @dp.message_handler(regexp=r'^\d+$')
 async def check_winner_or_not(message: Message):
-    prizes = match_winner_number(int(message.text))
-    if prizes:
-        answer = ' '.join(prizes)   # TODO: Заменить мокнутое сообщение на нормальное
-        await message.answer(answer, reply_markup=greet_kb)
-    else:
-        await message.answer('К сожалению Вы ничего не выиграли...')
+    prizes_message = match_winner_number(int(message.text))
+    await message.answer(prizes_message)
 
 
 @logger.catch
@@ -63,6 +61,35 @@ async def geo_handler(message: Message):
     await message.answer(result)
 
 
+@logger.catch
+@dp.message_handler(regexp=r'\D')
+async def wrong_number(message: Message):
+    """Если пользователь написал номер билета с ошибками"""
+    await message.answer('введите пожалуйста номер билета правильно без пробелов, номер может содержать только цифры')
+
+
+# @logger.catch
+# async def feedback_start(message: Message):
+#     """Запуск формы обратной связи"""
+#     await message.answer('Начало формы обратной связи. ебани телефон')
+#     await Feedback.waiting_for_phone.set()
+#
+#
+# @logger.catch
+# async def feedback_phone_set(message: Message, state: FSMContext):
+#     """Пользователь ввёл номер телефона"""
+#     try:
+#         phone = message.text.strip().replace('+', '')
+#     except ValueError:
+#         await message.answer('Ты долбоёб, чи шо? Нормально номер введи.')
+#         return
+#     await state.update_data(phone=phone)
+#     await message.answer('Теперь нужен номер билета')
+# TODO: Переписать фидбэк на пересылание сообщения в чат
+
+
 if __name__ == '__main__':
     logger.info('Bot started')
     executor.start_polling(dp, skip_updates=True)
+
+# TODO: Обработчик для обратной связи на FSM Контактные данные, номер билета, текст обращения
